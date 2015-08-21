@@ -1,0 +1,21 @@
+.controlPanel{
+	position: absolute;
+	left: 15pt;
+	top: 20pt;
+	z-index: 1000;
+}
+
+table{
+	width: 99%
+}
+
+#tableDiv{	
+	overflow: auto;
+	width: 100%;
+	height: 100%;
+}
+
+.map{
+	width: 100%; 
+	height: 100%;
+}

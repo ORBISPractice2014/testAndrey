@@ -1,0 +1,176 @@
+<html>
+	<head>
+		<script src="https://api-maps.yandex.ru/2.1/?lang=ru_RU&coordorder=longlat" type="text/javascript"></script>
+		<script src="AJAX.js" type="text/javascript"></script>
+		<link href="style.css" rel="stylesheet" media="screen">
+		
+		<link rel="stylesheet" type="text/css" href="w2ui-1.4.3.min.css" />
+		<script src="jquery-1.11.3.min.js"></script>
+		<script type="text/javascript" src="w2ui-1.4.3.min.js"></script>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+	</head>
+	
+	<body>
+		<div id="mapContainer">
+			<div id="map" class="map"></div>
+		</div>
+		<div class="controlPanel">
+			<button type="button" onclick="HandleButtonSelect(0)">JSON 1</button>
+			<button type="button" onclick="HandleButtonSelect(1)">JSON 2</button>
+			<button type="button" onclick="HandleButtonSelect(2)">JSON 3</button></br></br>
+			<form onsubmit="return false;">
+				<input type='text' oninput="FilterData();" placeholder="Enter filter here" id='filter' class="filter">
+			</form>
+		</div>
+		<div id="tableDiv"></div>
+		
+		<div id="layout" style="width: 100%; height: 100%;"></div>
+		<script>
+		
+			window.layers=[];
+			CreateAsyncRequest('GET', 'js-layer1.json', '', function(response){window.layers[0]=AdoptLayer(response)});
+			CreateAsyncRequest('GET', 'js-layer2.json', '', function(response){window.layers[1]=AdoptLayer(response)});
+			CreateAsyncRequest('GET', 'js-layer3.json', '', function(response){window.layers[2]=AdoptLayer(response)});
+			
+			ymaps.ready(Init);
+			var myMap;
+
+			function AdoptLayer(jsonLayer){
+				var tempLayer=JSON.parse(jsonLayer);
+				for(featureKey in tempLayer.features){
+
+					tempLayer.features[featureKey].properties.balloonContent = "";
+					tempLayer.features[featureKey].properties.balloonContent += "Название - " + tempLayer.features[featureKey].properties.name + "<br/>";
+					if (tempLayer.features[featureKey].properties.adres){
+						tempLayer.features[featureKey].properties.balloonContent += "Адрес - " + tempLayer.features[featureKey].properties.adres + "<br/>";
+					}
+					if (tempLayer.features[featureKey].properties.kontakty){
+						tempLayer.features[featureKey].properties.balloonContent += "Контакты - " + tempLayer.features[featureKey].properties.kontakty;
+					}
+					if (tempLayer.features[featureKey].properties.vid_dejatelnosti){
+						tempLayer.features[featureKey].properties.balloonContent += "Вид деятельности - " + tempLayer.features[featureKey].properties.vid_dejatelnosti;
+					}
+				}
+				return tempLayer;
+			}
+			
+			function Init(){     
+				window.myMap = new ymaps.Map("map", {center: [49.68180796, 53.30436539], zoom: 9, controls:['zoomControl', 'typeSelector']});
+				
+				/*window.controlButtons=[];
+				var currentButton = new ymaps.control.Button('JSON 1');
+				currentButton.events.add('select', function(){HandleButtonSelect(0)});
+				currentButton.events.add('deselect', ClearData);
+				window.controlButtons.push(currentButton);
+				
+				currentButton = new ymaps.control.Button('JSON 2');
+				currentButton.events.add('select', function(){HandleButtonSelect(1)});
+				currentButton.events.add('deselect', ClearData);
+				window.controlButtons.push(currentButton);
+				
+				currentButton = new ymaps.control.Button('JSON 3');
+				currentButton.events.add('select', function(){HandleButtonSelect(2)});
+				currentButton.events.add('deselect', ClearData);
+				window.controlButtons.push(currentButton);
+				for (var i = 2; i>=0; i--){
+					myMap.controls.add(window.controlButtons[i], {float:'left'});
+				}*/
+				
+				window.myObjectManager = new ymaps.ObjectManager({ clusterize: false });
+			}
+			
+			function DrawLayer(layer){
+				myObjectManager.add(layer);
+				myMap.geoObjects.add(myObjectManager);
+				
+				DrawTable(layer, 'tableDiv');
+			}
+			
+			function HandleButtonSelect(buttonNumber){
+				ClearData();
+				document.getElementById('filter').value='';
+				window.currentLayer=layers[buttonNumber];
+				/*for(key in window.controlButtons){
+					if(key!=buttonNumber && controlButtons[buttonNumber].state.get('selected')==true){
+						controlButtons[key].deselect();
+					}
+				}*/
+				DrawLayer(currentLayer);
+			}
+			
+			function ClearData(){
+				myObjectManager.removeAll();
+				if (document.getElementById('tableContainer')){
+					document.getElementById('tableContainer').remove();
+				}
+			}
+			
+			function HandleDragStart(e){
+				e.dataTransfer.setData("text/plain",e.target.id);
+			}
+			
+			function DrawTable(layer, rootId){				
+				var tableDiv = document.createElement('div');
+				tableDiv.setAttribute('id', 'tableContainer');
+				tableDiv.setAttribute('draggable', 'true');
+				tableDiv.ondragstart = function(){HandleDragStart(event)};
+				var table = document.createElement('table');
+				table.setAttribute('border', '1')
+				tableDiv.appendChild(table);
+				var currentTr = document.createElement('tr');
+				table.appendChild(currentTr);
+				
+				var currentTd = document.createElement('td');
+				table.appendChild(currentTr);
+				currentTd.appendChild(document.createTextNode('Имя'));
+				currentTr.appendChild(currentTd);
+				
+				currentTd = document.createElement('td');
+				table.appendChild(currentTr);
+				currentTd.appendChild(document.createTextNode('Адрес'));
+				currentTr.appendChild(currentTd);
+				
+				for (key in layer.features){
+					currentTr = document.createElement('tr');
+					table.appendChild(currentTr);
+				
+					currentTd = document.createElement('td');
+					currentTd.appendChild(document.createTextNode(layer.features[key].properties.name));
+					currentTr.appendChild(currentTd);
+				
+					currentTd = document.createElement('td');
+					currentTd.appendChild(document.createTextNode(layer.features[key].properties.adres));
+					currentTr.appendChild(currentTd);
+				}
+				document.getElementById(rootId).appendChild(tableDiv);
+			}
+				
+			function FilterData(){
+				var sublayer=new Object();
+				sublayer.type=currentLayer.type;
+				sublayer.crs=currentLayer.crs;
+				sublayer.features=[];
+				var filterString = document.getElementById('filter').value;
+				ClearData();
+				for (key in currentLayer.features){
+					if (currentLayer.features[key].properties.name.toLowerCase().indexOf(filterString.toLowerCase())+1){
+						sublayer.features.push(currentLayer.features[key]);
+					}	
+				}
+				DrawLayer(sublayer);
+			}
+			
+			$(function () {
+				var pstyle = 'background-color: #F5F6F7; border: 1px solid #dfdfdf; padding: 5px;';
+				$('#layout').w2layout({
+					name: 'layout',
+					panels: [
+						{ type: 'main', style: pstyle, size: '50%', resizable: true, content: document.getElementById('mapContainer')},
+						{ type: 'bottom', size: '50%', resizable: true, style: pstyle, content: document.getElementById('tableDiv') }
+					],
+					onResize: function(){if(w2ui['layout'] && window.myMap){window.myMap.container.fitToViewport();}}
+				});
+			});
+		</script>
+	</body>
+</html>
